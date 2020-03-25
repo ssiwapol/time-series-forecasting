@@ -131,6 +131,7 @@ class ModelValidate:
         self.lg.logtxt("create output directory: {}".format(output_dir))
         self.fp.writecsv(self.df, "{}input.csv".format(output_dir))
         self.lg.logtxt("write input file: {}input.csv".format(output_dir))
+        self.runitem = {}
         # set parameter
         items = self.df['id'].unique()
         n_chunk = len([x for x in chunker(items, chunk_sz)])
@@ -146,6 +147,7 @@ class ModelValidate:
                 for d in test_date:
                     model = TimeSeriesForecasting(df_i, act_st, d, test_pr)
                     for m in test_model:
+                        self.runitem = {"batch": i, "id": x, "testdate": d, "model": m}
                         st_time = datetime.datetime.now()
                         r = model.forecast(m)
                         r = r.rename(columns={'y': 'forecast'})
@@ -209,6 +211,7 @@ class Forecasting:
         self.fp.writecsv(self.df_act, "{}input_actual.csv".format(output_dir))
         self.fp.writecsv(self.df_fcstlog, "{}input_forecast.csv".format(output_dir))
         self.lg.logtxt("write input file: {}input_actual.csv | {}input_forecast.csv".format(output_dir, output_dir))
+        self.runitem = {}
         # set parameter
         items = self.df_act['id'].unique()
         n_chunk = len([x for x in chunker(items, chunk_sz)])
@@ -231,6 +234,7 @@ class Forecasting:
                 # forecasting function
                 model = TimeSeriesForecasting(df_act, act_st, fcst_st, fcst_pr)
                 for m in model_list:
+                    self.runitem = {"batch": i, "id": x, "model": m}
                     st_time = datetime.datetime.now()
                     r = model.forecast(m)
                     r = r.rename(columns={'y': 'forecast'})

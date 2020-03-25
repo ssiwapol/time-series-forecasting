@@ -20,18 +20,21 @@ if __name__=="__main__":
     # run options
     if args.run == "validate":
         try:
-            mv = ModelValidate(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], conf['CLOUD_AUTH'])
-            mv.lg.logtxt("run detail: {}".format(r))
-            mv.loaddata(r['ACT_PATH'])
-            mv.validate(r['OUTPUT_DIR'], r['ACT_START'], r['ACT_END'], 
+            v = ModelValidate(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], conf['CLOUD_AUTH'])
+            v.lg.logtxt("run detail: {}".format(r))
+            v.loaddata(r['ACT_PATH'])
+            v.validate(r['OUTPUT_DIR'], r['ACT_START'], r['ACT_END'], 
                         r['TEST_START'], r['TEST_END'], r['TEST_PERIOD'], r['TEST_MODEL'], 
                         r['MTH_START'], r['CHUNKSIZE'])
         except Exception as e:
-            mv.lg.logtxt(str(e), error=True)
+            error_item = "batch: {} | id: {} | testdate: {} | model:{}".format(
+                v.runitem.get('batch'), v.runitem.get('id'), v.runitem.get('testdate').strftime("%Y-%m-%d"), v.runitem.get('model'))
+            error_txt = "ERROR: {} ({})".format(str(e), error_item)
+            v.lg.logtxt(error_txt, error=True)
         if args.gbqdest is not None:
             try:
                 gbq = GCStoGBQ(conf['PLATFORM'], conf['LOG_TAG'], conf['CLOUD_AUTH'])
-                gbq.listfile(mv.output_dir, "output_validate")
+                gbq.listfile(v.output_dir, "output_validate")
                 gbq.togbq(args.gbqdest)
             except Exception as e:
                 gbq.lg.logtxt(str(e), error=True)
@@ -43,7 +46,9 @@ if __name__=="__main__":
             f.forecast(r['OUTPUT_DIR'], r['ACT_START'], r['FCST_START'], r['FCST_MODEL'], 
                        r['MTH_START'], r['TEST_BACK'], r['CHUNKSIZE'])
         except Exception as e:
-            f.lg.logtxt(str(e), error=True)
+            error_item = "batch: {} | id: {} | model:{}".format(f.runitem.get('batch'), f.runitem.get('id'), f.runitem.get('model'))
+            error_txt = "ERROR: {} ({})".format(str(e), error_item)
+            f.lg.logtxt(error_txt, error=True)
         if args.gbqdest is not None:
             try:
                 gbq = GCStoGBQ(conf['PLATFORM'], conf['LOG_TAG'], conf['CLOUD_AUTH'])
