@@ -17,19 +17,19 @@ class TimeSeriesForecasting:
         self.fcst_pr = fcst_pr
         self.fcst_dt = pd.date_range(start=self.fcst_st, periods=self.fcst_pr, freq='MS')
         self.df_d = self.filldaily(self.df.copy(), self.act_st, self.fcst_st + datetime.timedelta(days=-1))
-        self.df_m = self.daytomth(self.df.copy())
-
-    @staticmethod
-    def daytomth(df, col_ds='ds', col_y='y'):
-        df[col_ds] = df[col_ds].apply(lambda x: x.replace(day=1))
-        df = df.groupby([col_ds], as_index=False).agg({col_y: 'sum'})
-        df = df[[col_ds, col_y]].sort_values(by=col_ds, ascending=True).reset_index(drop=True)
-        return df
+        self.df_m = self.daytomth(self.df_d.copy())
 
     @staticmethod
     def filldaily(df, start, end, col_ds='ds', col_y='y'):
         d = pd.DataFrame(pd.date_range(start=start, end=end), columns=[col_ds])
         df = pd.merge(d, df, on=col_ds, how='left')
+        df = df.groupby([col_ds], as_index=False).agg({col_y: 'sum'})
+        df = df[[col_ds, col_y]].sort_values(by=col_ds, ascending=True).reset_index(drop=True)
+        return df
+
+    @staticmethod
+    def daytomth(df, col_ds='ds', col_y='y'):
+        df[col_ds] = df[col_ds].apply(lambda x: x.replace(day=1))
         df = df.groupby([col_ds], as_index=False).agg({col_y: 'sum'})
         df = df[[col_ds, col_y]].sort_values(by=col_ds, ascending=True).reset_index(drop=True)
         return df
@@ -66,9 +66,12 @@ class TimeSeriesForecasting:
     
     def arima01(self):
         x = list(self.df_m['y'])
-        m = pm.auto_arima(x, start_p=1, start_q=1, max_p=12, max_q=12, d=None,
-                          m=12, seasonal=True, trace=False,
-                          error_action='ignore', suppress_warnings=True, stepwise=True)
+        try:
+            m = pm.auto_arima(x, start_p=1, start_q=1, max_p=12, max_q=12, d=None,
+                              m=12, seasonal=True, trace=False,
+                              error_action='ignore', suppress_warnings=True, stepwise=True)
+        except Exception:
+            m = pm.auto_arima(x)
         r = m.predict(n_periods=self.fcst_pr)
         r = pd.DataFrame(zip(self.fcst_dt, r), columns =['ds', 'y'])
         return self.correctzero(r)
