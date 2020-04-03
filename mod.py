@@ -3,6 +3,7 @@ import os
 import logging
 import datetime
 from dateutil.relativedelta import relativedelta
+import multiprocessing
 
 from pytz import timezone
 import numpy as np
@@ -107,8 +108,10 @@ def mape(act, pred):
         except Exception:
             return None
 
+
 def chunker(seq, size):
     return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
 
 class ModelValidate:
     def __init__(self, platform, logtag, tz, cloud_auth="None"):
@@ -122,7 +125,30 @@ class ModelValidate:
         df = pd.read_csv(self.fp.loadfile(act_path), parse_dates=['ds'], date_parser=dateparse)
         self.df = df.rename(columns={col_id: 'id', col_ds: 'ds', col_y: 'y'})
         self.lg.logtxt("load data: {}".format(act_path))
-    
+
+    def validate_byitem(self, x, df, act_st, act_end, test_date, test_pr, test_model, mth_st, batch_no):
+        df_i = df[df['id']==x][['ds', 'y']]
+        df_i = TimeSeriesForecasting.filldaily(df_i, act_st, act_end)
+        df_r = pd.DataFrame()
+        for d in test_date:
+            model = TimeSeriesForecasting(df_i, act_st, d, test_pr)
+            for m in test_model:
+                self.runitem = {"batch": batch_no, "id": x, "testdate": d, "model": m}
+                st_time = datetime.datetime.now()
+                r = model.forecast(m)
+                r = r.rename(columns={'y': 'forecast'})
+                r['time'] = (datetime.datetime.now() - st_time).total_seconds()
+                r['id'] = x
+                r['model'] = m
+                r['mth'] = np.arange(mth_st, len(r)+mth_st)
+                act = TimeSeriesForecasting.daytomth(df_i.copy())
+                r = pd.merge(r, act, on=['ds'], how='left')
+                r = r.rename(columns={'y': 'actual'})
+                r['error'] = r.apply(lambda x: mape(x['actual'], x['forecast']), axis=1)
+                r = r[['id', 'ds', 'mth', 'model', 'actual', 'forecast', 'error', 'time']]
+                df_r = df_r.append(r, ignore_index = True)
+        return df_r
+
     def validate(self, output_dir, act_st, act_end, test_st, test_end, test_pr, test_model, mth_st, chunk_sz):
         # make output directory
         output_dir = "{}validate_{}/".format(output_dir, datetime.datetime.now(timezone(self.tz)).strftime("%Y%m%d-%H%M%S"))
@@ -140,35 +166,20 @@ class ModelValidate:
         self.lg.logtxt("total items: {} | chunk size: {} | total chunk: {}".format(len(items), chunk_sz, n_chunk))
         # loop by chunk
         for i, c in enumerate(chunker(items, chunk_sz), 1):
-            df_fc = pd.DataFrame()
-            for x in c:
-                df_i = self.df[self.df['id']==x][['ds', 'y']]
-                df_i = TimeSeriesForecasting.filldaily(df_i, act_st, act_end)
-                for d in test_date:
-                    model = TimeSeriesForecasting(df_i, act_st, d, test_pr)
-                    for m in test_model:
-                        self.runitem = {"batch": i, "id": x, "testdate": d, "model": m}
-                        st_time = datetime.datetime.now()
-                        r = model.forecast(m)
-                        r = r.rename(columns={'y': 'forecast'})
-                        r['time'] = (datetime.datetime.now() - st_time).total_seconds()
-                        r['id'] = x
-                        r['model'] = m
-                        r['mth'] = np.arange(mth_st, len(r)+mth_st)
-                        act = TimeSeriesForecasting.daytomth(df_i.copy())
-                        r = pd.merge(r, act, on=['ds'], how='left')
-                        r = r.rename(columns={'y': 'actual'})
-                        r['error'] = r.apply(lambda x: mape(x['actual'], x['forecast']), axis=1)
-                        r = r[['id', 'ds', 'mth', 'model', 'actual', 'forecast', 'error', 'time']]
-                        df_fc = df_fc.append(r, ignore_index = True)
+            df_fcst = pd.DataFrame()
+            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+            for r in pool.starmap(self.validate_byitem, [[x, self.df, act_st, act_end, test_date, test_pr, test_model, mth_st, i] for x in c]):
+                df_fcst = df_fcst.append(r, ignore_index = True)
+            pool.close()
+            pool.join()
             # write csv file
             output_path = "{}output_validate_{:04d}-{:04d}.csv".format(output_dir, i, n_chunk)
-            self.fp.writecsv(df_fc, output_path)
+            self.fp.writecsv(df_fcst, output_path)
             self.lg.logtxt("write output file ({}/{}): {}".format(i, n_chunk, output_path))
-        self.lg.writelog("{}logfile.log".format(output_dir))
         self.lg.logtxt("[END VALIDATION]")
-        
-        
+        self.lg.writelog("{}logfile.log".format(output_dir))
+
+
 class Forecasting:
     def __init__(self, platform, logtag, tz, cloud_auth=None):
         self.fp = FilePath(platform, cloud_auth)
@@ -184,8 +195,12 @@ class Forecasting:
         self.df_fcstlog = df_fcstlog.rename(columns={col_id:'id', col_ds:'ds', col_mth:'mth', col_model:'model', col_fcst:'forecast'})
         self.lg.logtxt("load data: {} | {}".format(act_path, fcst_path))
         
-    def rank_model(self, df_fcst, df_act, fcst_model):
-        df_rank = df_fcst.copy()
+    def rankmodel_byitem(self, x, df_act, df_fcstlog, fcst_model, act_st, fcst_st, test_st):
+        df_act = df_act[df_act['id']==x].copy()
+        df_fcstlog = self.df_fcstlog[self.df_fcstlog['id']==x].copy()
+        df_act = df_act[(df_act['ds']>=act_st) & (df_act['ds']<fcst_st)].copy()
+        df_fcstlog = df_fcstlog[(df_fcstlog['ds']>=test_st) & (df_fcstlog['ds']<fcst_st)].copy()
+        df_rank = df_fcstlog.copy()
         # select only in config file
         df_rank['val'] = df_rank['mth'].map(fcst_model)
         df_rank = df_rank[df_rank['val'].notnull()].copy()
@@ -201,6 +216,24 @@ class Forecasting:
         # ranking error
         df_rank['rank'] = df_rank.groupby("mth")["error"].rank(method="first", ascending=True)
         return df_rank
+
+    def forecast_byitem(self, x, df, act_st, fcst_st, fcst_pr, model_list, mth_st, batch_no):
+        df = df[df['id']==x].copy()
+        df = df[(df['ds']>=act_st) & (df['ds']<fcst_st)].copy()
+        model = TimeSeriesForecasting(df, act_st, fcst_st, fcst_pr)
+        df_r = pd.DataFrame()
+        for m in model_list:
+            self.runitem = {"batch": batch_no, "id": x, "model": m}
+            st_time = datetime.datetime.now()
+            r = model.forecast(m)
+            r = r.rename(columns={'y': 'forecast'})
+            r['time'] = (datetime.datetime.now() - st_time).total_seconds()
+            r['id'] = x
+            r['model'] = m
+            r['mth'] = np.arange(mth_st, len(r)+mth_st)
+            r = r[['id', 'ds', 'mth', 'model', 'forecast', 'time']]
+            df_r = df_r.append(r, ignore_index = True)
+        return df_r
         
     def forecast(self, output_dir, act_st, fcst_st, fcst_model, mth_st, test_bck, chunk_sz):
         # make output directory
@@ -222,28 +255,18 @@ class Forecasting:
         model_list = list(set(b for a in fcst_model.values() for b in a))
         self.lg.logtxt("total items: {} | chunk size: {} | total chunk: {}".format(len(items), chunk_sz, n_chunk))
         for i, c in enumerate(chunker(items, chunk_sz), 1):
+            # forecast
             df_fcst = pd.DataFrame()
+            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+            for r in pool.starmap(self.forecast_byitem, [[x, self.df_act, act_st, fcst_st, fcst_pr, model_list, mth_st, i] for x in c]):
+                df_fcst = df_fcst.append(r, ignore_index = True)
+            pool.close()
+            pool.join()
+            # rank model
             df_rank = pd.DataFrame()
-            for x in c:
-                # select data by id
-                df_act = self.df_act[self.df_act['id']==x].copy()
-                df_fcstlog = self.df_fcstlog[self.df_fcstlog['id']==x].copy()
-                df_act = df_act[(df_act['ds']>=act_st) & (df_act['ds']<fcst_st)].copy()
-                df_fcstlog = df_fcstlog[(df_fcstlog['ds']>=test_st) & (df_fcstlog['ds']<fcst_st)].copy()
-                df_rank = df_rank.append(self.rank_model(df_fcstlog, df_act, fcst_model))
-                # forecasting function
-                model = TimeSeriesForecasting(df_act, act_st, fcst_st, fcst_pr)
-                for m in model_list:
-                    self.runitem = {"batch": i, "id": x, "model": m}
-                    st_time = datetime.datetime.now()
-                    r = model.forecast(m)
-                    r = r.rename(columns={'y': 'forecast'})
-                    r['time'] = (datetime.datetime.now() - st_time).total_seconds()
-                    r['id'] = x
-                    r['model'] = m
-                    r['mth'] = np.arange(mth_st, len(r)+mth_st)
-                    r = r[['id', 'ds', 'mth', 'model', 'forecast', 'time']]
-                    df_fcst = df_fcst.append(r, ignore_index = True)
+            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+            for r in pool.starmap(self.rankmodel_byitem, [[x, self.df_act, self.df_fcstlog, fcst_model, act_st, fcst_st, test_st] for x in c]):
+                df_rank = df_rank.append(r, ignore_index = True)
             # find best model
             df_sl = pd.merge(df_fcst, df_rank, on=['id', 'mth', 'model'], how='left')
             df_sl = df_sl[df_sl['rank']==1].copy()
@@ -256,8 +279,8 @@ class Forecasting:
             selection_path = "{}output_selection_{:04d}-{:04d}.csv".format(output_dir, i, n_chunk)
             self.fp.writecsv(df_sl, selection_path)
             self.lg.logtxt("write output file ({}/{}): {} | {}".format(i, n_chunk, fcst_path, selection_path))
-        self.lg.writelog("{}logfile.log".format(output_dir))
         self.lg.logtxt("[END FORECAST]")
+        self.lg.writelog("{}logfile.log".format(output_dir))
 
 
 class GCStoGBQ:
