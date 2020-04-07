@@ -27,10 +27,7 @@ if __name__=="__main__":
                         r['TEST_START'], r['TEST_END'], r['TEST_PERIOD'], r['TEST_MODEL'], 
                         r['MTH_START'], r['CHUNKSIZE'])
         except Exception as e:
-            error_item = "batch: {} | id: {} | testdate: {} | model:{}".format(
-                v.runitem.get('batch'), v.runitem.get('id'), v.runitem.get('testdate').strftime("%Y-%m-%d"), v.runitem.get('model'))
-            error_txt = "ERROR: {} ({})".format(str(e), error_item)
-            v.lg.logtxt(error_txt, error=True)
+            v.lg.logtxt("ERROR: {}".format(str(e)), error=True)
         if args.gbqdest is not None:
             try:
                 gbq = GCStoGBQ(conf['PLATFORM'], conf['LOG_TAG'], conf['CLOUD_AUTH'])
@@ -46,9 +43,7 @@ if __name__=="__main__":
             f.forecast(r['OUTPUT_DIR'], r['ACT_START'], r['FCST_START'], r['FCST_MODEL'], 
                        r['MTH_START'], r['TEST_BACK'], r['CHUNKSIZE'])
         except Exception as e:
-            error_item = "batch: {} | id: {} | model:{}".format(f.runitem.get('batch'), f.runitem.get('id'), f.runitem.get('model'))
-            error_txt = "ERROR: {} ({})".format(str(e), error_item)
-            f.lg.logtxt(error_txt, error=True)
+            f.lg.logtxt("ERROR: {}".format(str(e)), error=True)
         if args.gbqdest is not None:
             try:
                 gbq = GCStoGBQ(conf['PLATFORM'], conf['LOG_TAG'], conf['CLOUD_AUTH'])
