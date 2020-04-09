@@ -26,12 +26,19 @@ apikey: [AUTH_KEY]
 - [Prophet by Facebook](https://facebook.github.io/prophet/)
 - LSTM (Long Short-Term Memory)
 
-# Deployment
-1. Requirement - [python3](https://www.python.org/), [pip3](https://docs.python.org/3/installing/index.html), [venv](https://docs.python.org/3/tutorial/venv.html)
+# Deployment (Python Environment)
+1. Requirement - [python>=3.7](https://www.python.org/), [pip3](https://docs.python.org/3/installing/index.html), [venv](https://docs.python.org/3/tutorial/venv.html)
 2. Create config.yaml file
-3. Download [deploy.sh](deploy.sh)
+3. Download [deploy_python.sh](deploy/deploy_python.sh)
 4. Make it executable
-5. Run [deploy.sh](deploy.sh)
+5. Run `./deploy_python.sh`
+
+# Deployment (Docker)
+1. Requirement - [docker](https://www.docker.com/)
+2. Create config.yaml file
+3. Download [deploy_docker.sh](deploy/deploy_docker.sh)
+4. Make it executable
+5. Run `./deploy_docker.sh`
 
 # Configuration File
 - config.yaml

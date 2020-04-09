@@ -3,7 +3,7 @@
 git clone https://github.com/ssiwapol/time-series-forecasting
 mv config.yaml time-series-forecasting/config.yaml
 cd time-series-forecasting
-sudo chmod 777 run.sh
+chmod 777 run.sh
 python3 -m venv env
 source env/bin/activate
 pip3 install -r requirements.txt
