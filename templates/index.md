@@ -32,6 +32,7 @@ TEST_PERIOD: [N]
 TEST_MODEL: [MODEL1, MODEL2, MODEL3, MODELN]
 MTH_START: [N] #default 0
 CHUNKSIZE: [N]
+CPU: [NO_OF_RUNNING_PROCESSORS]
 ```
 
 - configuration: forecast.yaml
@@ -50,6 +51,7 @@ FCST_MODEL:
 TEST_BACK: [N]
 MTH_START: [N] #default 0
 CHUNKSIZE: [N]
+CPU: [NO_OF_RUNNING_PROCESSORS]
 ```
 
 ### Remarks

@@ -155,7 +155,7 @@ class ModelValidate:
                     lg.logtxt(error_txt, error=True)
         return df_r
 
-    def validate(self, output_dir, act_st, act_end, test_st, test_end, test_pr, test_model, mth_st, chunk_sz):
+    def validate(self, output_dir, act_st, act_end, test_st, test_end, test_pr, test_model, mth_st, chunk_sz, cpu):
         # make output directory
         output_dir = "{}validate_{}/".format(output_dir, datetime.datetime.now(timezone(self.tz)).strftime("%Y%m%d-%H%M%S"))
         self.output_dir = output_dir
@@ -170,13 +170,19 @@ class ModelValidate:
         act_end = act_end + relativedelta(months=+1) + relativedelta(days=-1)
         self.lg.logtxt("total items: {} | chunk size: {} | total chunk: {}".format(len(items), chunk_sz, n_chunk))
         # loop by chunk
+        cpu_count = 1 if cpu<=1 else multiprocessing.cpu_count() if cpu>=multiprocessing.cpu_count() else cpu
+        self.lg.logtxt("run at {} processor(s)".format(cpu_count))
         for i, c in enumerate(chunker(items, chunk_sz), 1):
             df_fcst = pd.DataFrame()
-            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-            for r in pool.starmap(self.validate_byitem, [[x, self.df, act_st, act_end, test_date, test_pr, test_model, mth_st, i, self.lg] for x in c]):
-                df_fcst = df_fcst.append(r, ignore_index = True)
-            pool.close()
-            pool.join()
+            if cpu_count==1:
+                for r in [self.validate_byitem(x, self.df, act_st, act_end, test_date, test_pr, test_model, mth_st, i, self.lg) for x in c]:
+                    df_fcst = df_fcst.append(r, ignore_index = True)
+            else:
+                pool = multiprocessing.Pool(processes=cpu_count)
+                for r in pool.starmap(self.validate_byitem, [[x, self.df, act_st, act_end, test_date, test_pr, test_model, mth_st, i, self.lg] for x in c]):
+                    df_fcst = df_fcst.append(r, ignore_index = True)
+                pool.close()
+                pool.join()
             # write csv file
             output_path = "{}output_validate_{:04d}-{:04d}.csv".format(output_dir, i, n_chunk)
             self.fp.writecsv(df_fcst, output_path)
@@ -245,7 +251,7 @@ class Forecasting:
         df_rank['rank'] = df_rank.groupby("mth")["error"].rank(method="first", ascending=True)
         return df_rank
         
-    def forecast(self, output_dir, act_st, fcst_st, fcst_model, mth_st, test_bck, chunk_sz):
+    def forecast(self, output_dir, act_st, fcst_st, fcst_model, mth_st, test_bck, chunk_sz, cpu):
         # make output directory
         output_dir = "{}forecast_{}/".format(output_dir, datetime.datetime.now(timezone(self.tz)).strftime("%Y%m%d-%H%M%S"))
         self.output_dir = output_dir
@@ -264,19 +270,26 @@ class Forecasting:
         fcst_pr = len(fcst_model.keys())
         model_list = list(set(b for a in fcst_model.values() for b in a))
         self.lg.logtxt("total items: {} | chunk size: {} | total chunk: {}".format(len(items), chunk_sz, n_chunk))
+        # forecast
+        cpu_count = 1 if cpu<=1 else multiprocessing.cpu_count() if cpu>=multiprocessing.cpu_count() else cpu
+        self.lg.logtxt("run at {} processor(s)".format(cpu_count))
         for i, c in enumerate(chunker(items, chunk_sz), 1):
-            # forecast
             df_fcst = pd.DataFrame()
-            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-            for r in pool.starmap(self.forecast_byitem, [[x, self.df_act, act_st, fcst_st, fcst_pr, model_list, mth_st, i, self.lg] for x in c]):
-                df_fcst = df_fcst.append(r, ignore_index = True)
-            pool.close()
-            pool.join()
-            # rank model
             df_rank = pd.DataFrame()
-            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-            for r in pool.starmap(self.rankmodel_byitem, [[x, self.df_act, self.df_fcstlog, fcst_model, act_st, fcst_st, test_st] for x in c]):
-                df_rank = df_rank.append(r, ignore_index = True)
+            if cpu_count==1:
+                for r in [self.forecast_byitem(x, self.df_act, act_st, fcst_st, fcst_pr, model_list, mth_st, i, self.lg) for x in c]:
+                    df_fcst = df_fcst.append(r, ignore_index = True)
+                for r in [self.rankmodel_byitem(x, self.df_act, self.df_fcstlog, fcst_model, act_st, fcst_st, test_st) for x in c]:
+                    df_rank = df_rank.append(r, ignore_index = True)
+            else:
+                pool = multiprocessing.Pool(processes=cpu_count)
+                for r in pool.starmap(self.forecast_byitem, [[x, self.df_act, act_st, fcst_st, fcst_pr, model_list, mth_st, i, self.lg] for x in c]):
+                    df_fcst = df_fcst.append(r, ignore_index = True)
+                pool.close()
+                pool.join()
+                pool = multiprocessing.Pool(processes=cpu_count)
+                for r in pool.starmap(self.rankmodel_byitem, [[x, self.df_act, self.df_fcstlog, fcst_model, act_st, fcst_st, test_st] for x in c]):
+                    df_rank = df_rank.append(r, ignore_index = True)
             # find best model
             df_sl = pd.merge(df_fcst, df_rank, on=['id', 'mth', 'model'], how='left')
             df_sl = df_sl[df_sl['rank']==1].copy()

@@ -25,7 +25,7 @@ if __name__=="__main__":
             v.loaddata(r['ACT_PATH'])
             v.validate(r['OUTPUT_DIR'], r['ACT_START'], r['ACT_END'], 
                         r['TEST_START'], r['TEST_END'], r['TEST_PERIOD'], r['TEST_MODEL'], 
-                        r['MTH_START'], r['CHUNKSIZE'])
+                        r['MTH_START'], r['CHUNKSIZE'], r['CPU'])
         except Exception as e:
             v.lg.logtxt("ERROR: {}".format(str(e)), error=True)
         if args.gbqdest is not None:
@@ -41,7 +41,7 @@ if __name__=="__main__":
             f.lg.logtxt("run detail: {}".format(r))
             f.loaddata(r['ACT_PATH'], r['FCST_PATH'])
             f.forecast(r['OUTPUT_DIR'], r['ACT_START'], r['FCST_START'], r['FCST_MODEL'], 
-                       r['MTH_START'], r['TEST_BACK'], r['CHUNKSIZE'])
+                       r['MTH_START'], r['TEST_BACK'], r['CHUNKSIZE'], r['CPU'])
         except Exception as e:
             f.lg.logtxt("ERROR: {}".format(str(e)), error=True)
         if args.gbqdest is not None:
