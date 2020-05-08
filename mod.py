@@ -14,7 +14,7 @@ from cloud import gcp
 
 
 class FilePath:
-    def __init__(self, platform, cloud_auth="None"):
+    def __init__(self, platform, cloud_auth=None):
         self.platform = platform
         self.cloud_auth = cloud_auth
 
@@ -61,7 +61,7 @@ class FilePath:
 
 
 class Logging:
-    def __init__(self, platform, logname, logtag="time-series-forecasting", cloud_auth="None"):
+    def __init__(self, platform, logname, logtag="time-series-forecasting", cloud_auth=None):
         self.platform = platform
         self.cloud_auth = cloud_auth
         self.logger = logging.getLogger(logname)
@@ -114,7 +114,7 @@ def chunker(seq, size):
 
 
 class ModelValidate:
-    def __init__(self, platform, logtag, tz, cloud_auth="None"):
+    def __init__(self, platform, logtag, tz, cloud_auth=None):
         self.fp = FilePath(platform, cloud_auth)
         self.lg = Logging(platform, "validate", logtag, cloud_auth)
         self.lg.logtxt("[START VALIDATION]")
