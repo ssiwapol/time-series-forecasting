@@ -8,7 +8,7 @@ import markdown
 
 from utils import FilePath
 
-with open("config.yaml") as f:
+with open("ext/config.yaml") as f:
     conf = yaml.load(f, Loader=yaml.Loader)
 app = Flask(__name__)
 
@@ -30,7 +30,7 @@ def runmodel():
     auth = headers.get("apikey")
     if auth == conf['APIKEY']:
         data = request.get_json()
-        fp = FilePath(conf['PLATFORM'], cloud_auth=conf['CLOUD_AUTH'])
+        fp = FilePath(conf['PLATFORM'], cloud_auth=os.path.join("ext", conf['CLOUD_AUTH']))
         try:
             if data.get('run') != "validate" and data.get('run') != "forecast":
                 return jsonify({"message": "ERROR: Run option is not available"}), 400
@@ -47,4 +47,4 @@ def runmodel():
 
 
 if __name__ == '__main__':
-    app.run(debug=conf['DEBUG'], host='0.0.0.0', port=conf['PORT'])
+    app.run(debug=conf['DEBUG'], host='0.0.0.0', port=5000)

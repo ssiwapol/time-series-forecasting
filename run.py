@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import argparse
 
 import yaml
@@ -13,9 +14,9 @@ args = parser.parse_args()
 
 
 if __name__=="__main__":
-    with open("config.yaml") as f:
+    with open("ext/config.yaml") as f:
         conf = yaml.load(f, Loader=yaml.Loader)
-    fp = FilePath(conf['PLATFORM'], cloud_auth=conf['CLOUD_AUTH'])
+    fp = FilePath(conf['PLATFORM'], cloud_auth=os.path.join("ext", conf['CLOUD_AUTH']))
     with fp.loadfile(args.runpath) as f:
         r = yaml.load(f, Loader=yaml.Loader)
     # run options
