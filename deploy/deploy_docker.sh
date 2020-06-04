@@ -9,7 +9,6 @@ PORT=$(grep 'PORT:' config.yaml); PORT=${PORT/PORT: /}; PORT=$(echo $PORT|tr -d 
 git clone https://github.com/ssiwapol/time-series-forecasting
 mv config.yaml time-series-forecasting/config.yaml
 cd time-series-forecasting
-chmod 777 run.sh
 
 # dockerize app
 docker rm -f $CONTAINERNAME
