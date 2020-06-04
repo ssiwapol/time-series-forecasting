@@ -4,22 +4,24 @@ import subprocess
 
 import yaml
 from flask import Flask, request, render_template, jsonify
-from flaskext.markdown import Markdown
+import markdown
 
-from mod import FilePath
+from utils import FilePath
 
 with open("config.yaml") as f:
     conf = yaml.load(f, Loader=yaml.Loader)
 app = Flask(__name__)
-Markdown(app, extensions=['fenced_code'])
 
 with open('templates/index.md', 'r') as f:
     index_content = f.read()
 
-
 @app.route('/', methods=['GET'])
 def home():
-    return render_template('index.html', mkd=index_content)
+    md_template = markdown.markdown(
+        index_content, 
+        extensions=["fenced_code", "tables"]
+        )
+    return render_template('index.html', mkd=md_template)
     
 
 @app.route('/api', methods = ['POST'])
@@ -35,10 +37,7 @@ def runmodel():
             elif fp.fileexists(data.get('path')) is False:
                 return jsonify({"message": "ERROR: Path file is not avaliable"}), 400
             else:
-                if data.get("gbqdest") is None:
-                    runsh = './run.sh {} {}'.format(data['run'], data["path"])
-                else:
-                    runsh = './run.sh {} {} {}'.format(data['run'], data["path"], data["gbqdest"])
+                runsh = './run.sh {} {}'.format(data['run'], data["path"])
                 subprocess.call([runsh], shell=True)
                 return jsonify({"message": "Successful run in background"}), 200
         except Exception as e:

@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Time Series Forecasting</title>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='style.css') }}">
 </head>
 <body>
-    {{ mkd|markdown }}
+    {{ mkd|safe }}
 </body>
 </html>
