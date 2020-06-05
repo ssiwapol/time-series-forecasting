@@ -16,13 +16,35 @@ warnings.filterwarnings("ignore")
 
 
 class Validation:
+    """Validate forecast model by rolling forecast
+    Init Parameters
+    ----------
+    platform : {'local', 'gcp'}
+        platform to store input/output
+    tz : str (e.g. Asia/Bangkok)
+        timezone for logging
+    logtag : str
+        logging tag
+    cloud_auth : str
+        authentication file path
+    """
     def __init__(self, platform, logtag, tz, cloud_auth=None):
         self.fp = FilePath(platform, cloud_auth)
         self.lg = Logging(platform, "validate", logtag, cloud_auth)
         self.lg.logtxt("[START VALIDATION]")
         self.tz = tz
-    
+
     def loaddata(self, act_path, ext_path=None, extlag_path=None):
+        """Load data for validation process
+        Parameters
+        ----------
+        act_path : str
+            historical data path
+        ext_path : str
+            external features path
+        extlag_path : str
+            external lag path
+        """
         col_id, col_ds, col_y = 'id', 'ds', 'y'
         dateparse = lambda x: datetime.datetime.strptime(x, '%Y-%m-%d').date()
         # load sales data
@@ -42,6 +64,7 @@ class Validation:
             self.lg.logtxt("load data: {}".format(act_path))
             
     def validate_byitem(self, x, act_st, test_date, test_model, fcst_pr, pr_st, batch_no):
+        """Validate data by item for parallel computing"""
         df = self.df[self.df['id']==x][['ds', 'y']].copy()
         if self.ext is not None:
             ext = self.ext[['id', 'ds', 'y']].copy()
@@ -70,6 +93,28 @@ class Validation:
         return df_r
 
     def validate(self, output_dir, act_st, test_st, test_pr, test_model, fcst_pr, pr_st, chunk_sz, cpu):
+        """Validate forecast model and write result by batch
+        Parameters
+        ----------
+        output_dir : str
+            output directory
+        act_st : datetime
+            actual start date
+        test_st : datetime
+            test start date
+        test_pr : int
+            number of rolling period to test (months)
+        test_model : list
+            list of model to test
+        fcst_pr : int
+            number of periods to forecast for each rolling
+        pr_st : int
+            starting period for each forecast (default 0/1)
+        chunk_sz : int
+            number of item to validate for each chunk
+        cpu : int
+            number of running processors
+        """
         # make output directory
         output_dir = "{}validate_{}/".format(output_dir, datetime.datetime.now(timezone(self.tz)).strftime("%Y%m%d-%H%M%S"))
         self.output_dir = output_dir
@@ -111,6 +156,18 @@ class Validation:
 
 
 class Forecasting:
+    """Forecast and perform model selection based on historical forecast
+    Init Parameters
+    ----------
+    platform : {'local', 'gcp'}
+        platform to store input/output
+    logtag : str
+        logging tag
+    tz : str (e.g. Asia/Bangkok)
+        timezone for logging
+    cloud_auth : str
+        authentication file path
+    """
     def __init__(self, platform, logtag, tz, cloud_auth=None):
         self.fp = FilePath(platform, cloud_auth)
         self.lg = Logging(platform, "forecast", logtag, cloud_auth)
@@ -118,6 +175,18 @@ class Forecasting:
         self.tz = tz
     
     def loaddata(self, act_path, fcst_path, ext_path=None, extlag_path=None):
+        """Load data for validation process
+        Parameters
+        ----------
+        act_path : str
+            historical data path
+        fcst_path : str
+            forecast log path
+        ext_path : str
+            external features path
+        extlag_path : str
+            external lag path
+        """
         # load actual and forecast data
         col_id, col_ds, col_y, col_mth, col_model, col_fcst = 'id', 'ds', 'y', 'mth', 'model', 'forecast'
         dateparse = lambda x: datetime.datetime.strptime(x, '%Y-%m-%d').date()
@@ -139,6 +208,7 @@ class Forecasting:
             self.lg.logtxt("load data: {} | {}".format(act_path, fcst_path))
 
     def forecast_byitem(self, x, act_st, fcst_st, fcst_pr, model_list, pr_st, batch_no):
+        """Forecast data by item for parallel computing"""
         df = self.df_act[self.df_act['id']==x].copy()
         if self.ext is not None:
             ext = self.ext[['id', 'ds', 'y']].copy()
@@ -165,6 +235,7 @@ class Forecasting:
         return df_r
 
     def rankmodel_byitem(self, x, fcst_model, act_st, fcst_st, test_type, test_st):
+        """Rank model based on historical forecast"""
         df_act = self.df_act[self.df_act['id']==x].copy()
         df_fcstlog = self.df_fcstlog[self.df_fcstlog['id']==x].copy()
         df_act = df_act[(df_act['ds']>=act_st) & (df_act['ds']<fcst_st)].copy()
@@ -187,6 +258,28 @@ class Forecasting:
         return df_rank
         
     def forecast(self, output_dir, act_st, fcst_st, fcst_model, test_type, test_bck, pr_st, chunk_sz, cpu):
+        """Forecast and write result by batch
+        Parameters
+        ----------
+        output_dir : str
+            output directory
+        act_st : datetime
+            actual start date
+        fcst_st : datetime
+            forecast date
+        fcst_model : dict('period', [list of models])
+            forecast model options for each periods
+        test_type : {'monthly', 'daily}
+            type of testing back error by month or day
+        test_bck : int
+            number of months to test back
+        pr_st : int
+            starting period for each forecast (default 0/1)
+        chunk_sz : int
+            number of item to validate for each chunk
+        cpu : int
+            number of running processors
+        """
         # make output directory
         output_dir = "{}forecast_{}/".format(output_dir, datetime.datetime.now(timezone(self.tz)).strftime("%Y%m%d-%H%M%S"))
         self.output_dir = output_dir
