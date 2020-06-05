@@ -52,5 +52,5 @@ CLOUD_AUTH: [CLOUD_AUTH_FILE]
 
 3. Run Container
 ```
-docker run --name [CONTAINER_NAME] -v $(pwd):/app/ext -d -p [PORT]:5000 [IMAGE_NAME]
+docker run --name [CONTAINER_NAME] -v $(pwd):/app/tmp -d -p [PORT]:5000 [IMAGE_NAME]
 ```

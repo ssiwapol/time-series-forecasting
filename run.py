@@ -6,6 +6,7 @@ import yaml
 
 from mod import Validation, Forecasting
 from utils import FilePath
+from app import tmp_dir, config_path, cloudauth_path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('run', action='store', help='Running type')
@@ -14,11 +15,18 @@ args = parser.parse_args()
 
 
 if __name__=="__main__":
-    with open("ext/config.yaml") as f:
+    # load config file
+    with open(config_path) as f:
         conf = yaml.load(f, Loader=yaml.Loader)
-    fp = FilePath(conf['PLATFORM'], cloud_auth=os.path.join("ext", conf['CLOUD_AUTH']))
-    with fp.loadfile(args.runpath) as f:
+    fp = FilePath(conf['PLATFORM'], cloud_auth=cloudauth_path)
+    # load running config file
+    run_path = os.path.join(tmp_dir, args.runpath)
+    with fp.loadfile(run_path) as f:
         r = yaml.load(f, Loader=yaml.Loader)
+    # add prefix if run on local
+    if conf['PLATFORM'] == "local":
+        path_list = ['ACT_PATH', 'EXT_PATH', 'EXTLAG_PATH', 'FCST_PATH', 'OUTPUT_DIR']
+        r = dict((k, os.path.join(tmp_dir, v)) if k in path_list and v is not None else (k, v) for k, v in r.items())
     # run options
     if args.run == "validate":
         v = Validation(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], conf['CLOUD_AUTH'])

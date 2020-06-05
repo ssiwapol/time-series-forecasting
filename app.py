@@ -8,12 +8,16 @@ import markdown
 
 from utils import FilePath
 
-with open("ext/config.yaml") as f:
-    conf = yaml.load(f, Loader=yaml.Loader)
-app = Flask(__name__)
 
+tmp_dir = "tmp"
+config_path = os.path.join(tmp_dir, "config.yaml")
+with open(config_path) as f:
+    conf = yaml.load(f, Loader=yaml.Loader)
+cloudauth_path = os.path.join(tmp_dir, conf['CLOUD_AUTH']) if conf['CLOUD_AUTH'] else None
 with open('templates/index.md', 'r') as f:
     index_content = f.read()
+
+app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 def home():
@@ -30,11 +34,11 @@ def runmodel():
     auth = headers.get("apikey")
     if auth == conf['APIKEY']:
         data = request.get_json()
-        fp = FilePath(conf['PLATFORM'], cloud_auth=os.path.join("ext", conf['CLOUD_AUTH']))
+        fp = FilePath(conf['PLATFORM'], cloud_auth=cloudauth_path)
         try:
             if data.get('run') != "validate" and data.get('run') != "forecast":
                 return jsonify({"message": "ERROR: Run option is not available"}), 400
-            elif fp.fileexists(data.get('path')) is False:
+            elif fp.fileexists(os.path.join(tmp_dir, data.get('path'))) is False:
                 return jsonify({"message": "ERROR: Path file is not avaliable"}), 400
             else:
                 runsh = './run.sh {} {}'.format(data['run'], data["path"])
