@@ -1,8 +1,2 @@
-.vscode/
-__pycache__/
-.ipynb_checkpoints/
 *.json
 *.yaml
-input/
-output/
-env/
