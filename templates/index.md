@@ -20,43 +20,37 @@ apikey: [AUTH_KEY]
 
 
 ## MODELS
-MODEL | DESCRIPTION | FEATURES | INPUT | OUTPUT | YTYPE
---- | --- | --- | --- | --- | ---
-expo01 | Single Exponential Smoothing (Simple Smoothing) | - | D/M | M | N
-expo02 | Double Exponential Smoothing (Holt’s Method) | - | D/M | M | N
-expo03 | Triple Exponential Smoothing (Holt-Winters’ Method) | - | D/M | M | N
-arima01 | ARIMA model with fixed parameter | - | D/M | M | N
-arima02 | ARIMA model with fixed parameter | - | D/M | M | GR
-arimax01 | ARIMAX model with fixed parameter and external features | - | D/M | M | N
-arimax02 | ARIMAX model with fixed parameter and external features | - | D/M | M | GR
-autoarima01 | ARIMA model with optimal parameter | - | D/M | M | N
-autoarima02 | ARIMA model with optimal parameter | - | D/M | M | GR
-autoarimax01 | ARIMAX model with optimal parameter and external features | - | D/M | M | N
-autoarimax02 | ARIMAX model with optimal parameter and external features | - | D/M | M | GR
-prophet01 | Prophet by Facebook | - | D | M | N
-prophetd01 | Prophet by Facebook | - | D | D | N
-lineard01 | Linear Regression used latest trend to date | trend | D | D | N
-lineard02 | Linear Regression used exact trend to date | trend | D | D | N
-randomforest01 | Random Forest | month, last month, last year, last momentum | D/M | M | N
-randomforest02 | Random Forest | month, last month, last year | D/M | M | GR
-randomforestx01 | Random Forest with external features | month, last month, last year, last momentum | D/M | M | N
-randomforestx02 | Random Forest with external features | month, last month, last year | D/M | M | GR
-xgboost01 | XGBoost | month, last month, last year, last momentum | D/M | M | N
-xgboost02 | XGBoost | month, last month, last year | D/M | M | GR
-xgboostx01 | XGBoost with external features | month, last month, last year, last momentum | D/M | M | N
-xgboostx02 | XGBoost with external features | month, last month, last year | D/M | M | GR
-lstm01 | Long Short-Term Memory | month, last year, last momentum | D/M | M | N
-lstm02 | Long Short-Term Memory | month, last year, last momentum | D/M | M | GR
-lstmr01 | Long Short-Term Memory with rolling forecast | month, last year, last momentum | D/M | M | N
-lstmr02 | Long Short-Term Memory with rolling forecast | month, last year, last momentum | D/M | M | GR
-lstmx01 | Long Short-Term Memory with external | month, last year, last momentum | D/M | M | N
-lstmx02 | Long Short-Term Memory with external | month, last year, last momentum | D/M | M | GR
-
-### Keywords
-- INPUT/OUTPUT D - Daily
-- INPUT/OUTPUT M - Monthly
-- YTYPE N - forecast nominal values
-- YTYPE GR - forecast year-on-year growth
+MODEL | DESCRIPTION | INPUT | OUTPUT | YTYPE
+--- | --- | --- | --- | ---
+expo01 | Single Exponential Smoothing (Simple Smoothing) | Daily / Monthly | Monthly | Nominal
+expo02 | Double Exponential Smoothing (Holt’s Method) | Daily / Monthly | Monthly | Nominal
+expo03 | Triple Exponential Smoothing (Holt-Winters’ Method) | Daily / Monthly | Monthly | Nominal
+arima01 | ARIMA model with fixed parameter | Daily / Monthly | Monthly | Nominal
+arima02 | ARIMA model with fixed parameter | Daily / Monthly | Monthly | Growth
+arimax01 | ARIMAX model with fixed parameter and external features | Daily / Monthly | Monthly | Nominal
+arimax02 | ARIMAX model with fixed parameter and external features | Daily / Monthly | Monthly | Growth
+autoarima01 | ARIMA model with optimal parameter | Daily / Monthly | Monthly | Nominal
+autoarima02 | ARIMA model with optimal parameter | Daily / Monthly | Monthly | Growth
+autoarimax01 | ARIMAX model with optimal parameter and external features | Daily / Monthly | Monthly | Nominal
+autoarimax02 | ARIMAX model with optimal parameter and external features | Daily / Monthly | Monthly | Growth
+prophet01 | Prophet by Facebook | Daily | Monthly | Nominal
+prophetd01 | Prophet by Facebook | Daily | Daily | Nominal
+lineard01 | Linear Regression used latest trend to date | Daily | Daily | Nominal
+lineard02 | Linear Regression used exact trend to date | Daily | Daily | Nominal
+randomforest01 | Random Forest | Daily / Monthly | Monthly | Nominal
+randomforest02 | Random Forest | Daily / Monthly | Monthly | Growth
+randomforestx01 | Random Forest with external features | Daily / Monthly | Monthly | Nominal
+randomforestx02 | Random Forest with external features | Daily / Monthly | Monthly | Growth
+xgboost01 | XGBoost | Daily / Monthly | Monthly | Nominal
+xgboost02 | XGBoost | Daily / Monthly | Monthly | Growth
+xgboostx01 | XGBoost with external features | Daily / Monthly | Monthly | Nominal
+xgboostx02 | XGBoost with external features | Daily / Monthly | Monthly | Growth
+lstm01 | Long Short-Term Memory | Daily / Monthly | Monthly | Nominal
+lstm02 | Long Short-Term Memory | Daily / Monthly | Monthly | Growth
+lstmr01 | Long Short-Term Memory with rolling forecast | Daily / Monthly | Monthly | Nominal
+lstmr02 | Long Short-Term Memory with rolling forecast | Daily / Monthly | Monthly | Growth
+lstmx01 | Long Short-Term Memory with external | Daily / Monthly | Monthly | Nominal
+lstmx02 | Long Short-Term Memory with external | Daily / Monthly | Monthly | Growth
 
 
 ## CONFIGURE RUN
