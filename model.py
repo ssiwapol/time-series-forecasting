@@ -529,9 +529,9 @@ class TimeSeriesForecasting:
         param = {'exact_trend': True, 'decomp_period': None, 'decomp_method': 'additive'}
         r = self.lineard(param)
         return r
-    
-    # Random Forest model without external features
-    def randomforest(self, gr, feat, param):
+
+    # Machine Learning model without external features
+    def ml(self, m, gr, feat, param):
         # prepare data
         df = self.monthlyfeat(self.df_m, col=feat)
         df['y'] = self.valtogr(df) if gr else df['y']
@@ -541,8 +541,6 @@ class TimeSeriesForecasting:
         X_trn = sc.fit_transform(X_trn)
         y_trn = df.iloc[:, 1].values
         # fit model
-        m = RandomForestRegressor(n_estimators = param['n_estimators'], min_samples_split = param['min_samples_split'], 
-                                   max_depth = param['max_depth'], max_features = param['max_features'], random_state=1)
         m.fit(X_trn, y_trn)
         # forecast each month
         r = pd.DataFrame(columns = ['ds', 'y', 'y_pred'])
@@ -557,6 +555,70 @@ class TimeSeriesForecasting:
             r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
         r = r[['ds', 'y']]
         return self.correctzero(r)
+
+    # Machine Learning model with external features
+    def mlx(self, m, gr, feat, param):
+        # if no external features, no forecast result
+        if self.ext is None:
+            return pd.DataFrame(columns = ['ds', 'y'])
+        # prepare data for model1
+        df = self.monthlyfeat(self.df_m, col=feat)
+        df['y'] = self.valtogr(df) if gr else df['y']
+        df = df.dropna().reset_index(drop=True)
+        sc = StandardScaler()
+        X_trn = df.iloc[:, 2:]
+        X_trn = sc.fit_transform(X_trn)
+        y_trn = df.iloc[:, 1].values
+        # fit model1
+        m.fit(X_trn, y_trn)
+        # forecast each month
+        r = pd.DataFrame(columns = ['ds', 'y', 'y_pred'])
+        for i in self.dt_m:
+            r = r.append({'ds' : i} , ignore_index=True)
+            df_pred = self.monthlyfeat(r, col=feat)
+            x = df_pred.iloc[-1, 2:].values
+            # if no external features for prediction, break and do model2
+            if np.isnan(list(x)).any():
+                r = r.iloc[:-1, :]
+                break
+            x_pred = sc.transform(x.reshape(1, -1))
+            y_pred = m.predict(x_pred)
+            r.iloc[-1, 2] = y_pred
+            r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
+        # model2 (used when there is no external features in future prediction)
+        if len(r) < self.fcst_pr:
+            # prepare data for model2
+            feat = [x for x in feat if not x.startswith("ex")]
+            df = self.monthlyfeat(self.df_m, col=feat)
+            df['y'] = self.valtogr(df) if gr else df['y']
+            df = df.dropna().reset_index(drop=True)
+            sc = StandardScaler()
+            X_trn = df.iloc[:, 2:]
+            X_trn = sc.fit_transform(X_trn)
+            y_trn = df.iloc[:, 1].values
+            # fit model2
+            m.fit(X_trn, y_trn)
+            # forecast the rest months
+            for i in self.dt_m[len(r):]:
+                r = r.append({'ds' : i} , ignore_index=True)
+                df_pred = self.monthlyfeat(r, col=feat)
+                x = df_pred.iloc[-1, 2:].values
+                x_pred = sc.transform(x.reshape(1, -1))
+                y_pred = m.predict(x_pred)
+                r.iloc[-1, 2] = y_pred
+                r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
+        # summarize result
+        r = r[['ds', 'y']]
+        return self.correctzero(r)
+    
+    # Random Forest model without external features
+    def randomforest(self, gr, feat, param):
+        model = RandomForestRegressor(
+            n_estimators = param['n_estimators'], min_samples_split = param['min_samples_split'], 
+            max_depth = param['max_depth'], max_features = param['max_features'], random_state=1
+            )
+        r = self.ml(model, gr, feat, param)
+        return r
  
     # Random Forest without external: forecast y
     def randomforest01(self):
@@ -576,62 +638,12 @@ class TimeSeriesForecasting:
     
     # Random Forest model with external features
     def randomforestx(self, gr, feat, param):
-        # if no external features, no forecast result
-        if self.ext is None:
-            return pd.DataFrame(columns = ['ds', 'y'])
-        # prepare data for model1
-        df = self.monthlyfeat(self.df_m, col=feat)
-        df['y'] = self.valtogr(df) if gr else df['y']
-        df = df.dropna().reset_index(drop=True)
-        sc = StandardScaler()
-        X_trn = df.iloc[:, 2:]
-        X_trn = sc.fit_transform(X_trn)
-        y_trn = df.iloc[:, 1].values
-        # fit model1
-        m = RandomForestRegressor(n_estimators = param['n_estimators'], min_samples_split = param['min_samples_split'], 
-                                  max_depth = param['max_depth'], max_features = param['max_features'], random_state=1)
-        m.fit(X_trn, y_trn)
-        # forecast each month
-        r = pd.DataFrame(columns = ['ds', 'y', 'y_pred'])
-        for i in self.dt_m:
-            r = r.append({'ds' : i} , ignore_index=True)
-            df_pred = self.monthlyfeat(r, col=feat)
-            x = df_pred.iloc[-1, 2:].values
-            # if no external features for prediction, break and do model2
-            if np.isnan(list(x)).any():
-                r = r.iloc[:-1, :]
-                break
-            x_pred = sc.transform(x.reshape(1, -1))
-            y_pred = m.predict(x_pred)
-            r.iloc[-1, 2] = y_pred
-            r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
-        # model2 (used when there is no external features in future prediction)
-        if len(r) < self.fcst_pr:
-            # prepare data for model2
-            feat = [x for x in feat if not x.startswith("ex")]
-            df = self.monthlyfeat(self.df_m, col=feat)
-            df['y'] = self.valtogr(df) if gr else df['y']
-            df = df.dropna().reset_index(drop=True)
-            sc = StandardScaler()
-            X_trn = df.iloc[:, 2:]
-            X_trn = sc.fit_transform(X_trn)
-            y_trn = df.iloc[:, 1].values
-            # fit model2
-            m = RandomForestRegressor(n_estimators = param['n_estimators'], min_samples_split = param['min_samples_split'], 
-                                      max_depth = param['max_depth'], max_features = param['max_features'], random_state=1)
-            m.fit(X_trn, y_trn)
-            # forecast the rest months
-            for i in self.dt_m[len(r):]:
-                r = r.append({'ds' : i} , ignore_index=True)
-                df_pred = self.monthlyfeat(r, col=feat)
-                x = df_pred.iloc[-1, 2:].values
-                x_pred = sc.transform(x.reshape(1, -1))
-                y_pred = m.predict(x_pred)
-                r.iloc[-1, 2] = y_pred
-                r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
-        # summarize result
-        r = r[['ds', 'y']]
-        return self.correctzero(r)
+        model = RandomForestRegressor(
+            n_estimators = param['n_estimators'], min_samples_split = param['min_samples_split'], 
+            max_depth = param['max_depth'], max_features = param['max_features'], random_state=1
+            )
+        r = self.mlx(model, gr, feat, param)
+        return r
 
     # Random Forest with external: forecast y
     def randomforestx01(self):
@@ -651,31 +663,12 @@ class TimeSeriesForecasting:
     
     # XGBoost model without external features
     def xgboost(self, gr, feat, param):
-        # prepare data
-        df = self.monthlyfeat(self.df_m, col=feat)
-        df['y'] = self.valtogr(df) if gr else df['y']
-        df = df.dropna().reset_index(drop=True)
-        sc = StandardScaler()
-        X_trn = df.iloc[:, 2:]
-        X_trn = sc.fit_transform(X_trn)
-        y_trn = df.iloc[:, 1].values
-        # fit model
-        m = XGBRegressor(learning_rate = param['learning_rate'], n_estimators = param['n_estimators'], 
-                         max_dept = param['max_dept'], min_child_weight = param['min_child_weight'])
-        m.fit(X_trn, y_trn)
-        # forecast each month
-        r = pd.DataFrame(columns = ['ds', 'y', 'y_pred'])
-        for i in self.dt_m:
-            r = r.append({'ds' : i} , ignore_index=True)
-            df_pred = self.monthlyfeat(r, col=feat)
-            x = df_pred.iloc[-1, 2:].values
-            # predict m
-            x_pred = sc.transform(x.reshape(1, -1))
-            y_pred = m.predict(x_pred)
-            r.iloc[-1, 2] = y_pred
-            r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
-        r = r[['ds', 'y']]
-        return self.correctzero(r)
+        model = XGBRegressor(
+            learning_rate = param['learning_rate'], n_estimators = param['n_estimators'], 
+            max_dept = param['max_dept'], min_child_weight = param['min_child_weight']
+            )
+        r = self.ml(model, gr, feat, param)
+        return r
     
     # XGBoost without external: forecast y
     def xgboost01(self):
@@ -695,62 +688,12 @@ class TimeSeriesForecasting:
 
     # XGBoost model with external features
     def xgboostx(self, gr, feat, param):
-        # if no external features, no forecast result
-        if self.ext is None:
-            return pd.DataFrame(columns = ['ds', 'y'])
-        # prepare data for model1
-        df = self.monthlyfeat(self.df_m, col=feat)
-        df['y'] = self.valtogr(df) if gr else df['y']
-        df = df.dropna().reset_index(drop=True)
-        sc = StandardScaler()
-        X_trn = df.iloc[:, 2:]
-        X_trn = sc.fit_transform(X_trn)
-        y_trn = df.iloc[:, 1].values
-        # fit model1
-        m = XGBRegressor(learning_rate = param['learning_rate'], n_estimators = param['n_estimators'], 
-                         max_dept = param['max_dept'], min_child_weight = param['min_child_weight'])
-        m.fit(X_trn, y_trn)
-        # forecast each month
-        r = pd.DataFrame(columns = ['ds', 'y', 'y_pred'])
-        for i in self.dt_m:
-            r = r.append({'ds' : i} , ignore_index=True)
-            df_pred = self.monthlyfeat(r, col=feat)
-            x = df_pred.iloc[-1, 2:].values
-            # if no external features for prediction, break and do model2
-            if np.isnan(list(x)).any():
-                r = r.iloc[:-1, :]
-                break
-            x_pred = sc.transform(x.reshape(1, -1))
-            y_pred = m.predict(x_pred)
-            r.iloc[-1, 2] = y_pred
-            r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
-        # model2 (used when there is no external features in future prediction)
-        if len(r) < self.fcst_pr:
-            # prepare data for model2
-            feat = [x for x in feat if not x.startswith("ex")]
-            df = self.monthlyfeat(self.df_m, col=feat)
-            df['y'] = self.valtogr(df) if gr else df['y']
-            df = df.dropna().reset_index(drop=True)
-            sc = StandardScaler()
-            X_trn = df.iloc[:, 2:]
-            X_trn = sc.fit_transform(X_trn)
-            y_trn = df.iloc[:, 1].values
-            # fit model2
-            m = XGBRegressor(learning_rate = param['learning_rate'], n_estimators = param['n_estimators'], 
-                             max_dept = param['max_dept'], min_child_weight = param['min_child_weight'])
-            m.fit(X_trn, y_trn)
-            # forecast the rest months
-            for i in self.dt_m[len(r):]:
-                r = r.append({'ds' : i} , ignore_index=True)
-                df_pred = self.monthlyfeat(r, col=feat)
-                x = df_pred.iloc[-1, 2:].values
-                x_pred = sc.transform(x.reshape(1, -1))
-                y_pred = m.predict(x_pred)
-                r.iloc[-1, 2] = y_pred
-                r['y'] = self.grtoval(r, self.df_m, col_y='y_pred', col_yact='y') if gr else r['y_pred']
-        # summarize result
-        r = r[['ds', 'y']]
-        return self.correctzero(r)
+        model = XGBRegressor(
+            learning_rate = param['learning_rate'], n_estimators = param['n_estimators'], 
+            max_dept = param['max_dept'], min_child_weight = param['min_child_weight']
+            )
+        r = self.mlx(model, gr, feat, param)
+        return r
 
     # XGBoost with external: forecast y
     def xgboostx01(self):
