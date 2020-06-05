@@ -20,7 +20,31 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 
 
 class TimeSeriesForecasting:
-    def __init__(self, df, act_st, fcst_st, fcst_pr, ext=None, ext_lag=None, col_ex='id', col_ds='ds', col_y='y'):
+    """Forecast time series values by chosen model
+    Init Parameters
+    ----------
+    df : dataframe columns (ds, y)
+        historical time series input data
+    act_st : datetime
+        start date of input data
+    fcst_st : datetime format
+        forecast date
+    fcst_pr : int
+        forecast period
+    ext : dataframe columns (ds, y), default=None
+        time series of external features
+        if not provided, some models return blank result
+    ext_lag : dataframe columns (id, lag), default=None
+        length of lagging from external features
+        if not provided, some models return blank result
+    col_ds: str, default='ds'
+        name of col ds (datestamp)
+    col_y: str, default='y'
+        name of col y
+    col_ex: str, default='id'
+        name of col external id in external lag
+    """
+    def __init__(self, df, act_st, fcst_st, fcst_pr, ext=None, ext_lag=None, col_ds='ds', col_y='y', col_ex='id'):
         self.act_st = datetime.datetime.combine(act_st, datetime.datetime.min.time())
         self.fcst_st = datetime.datetime.combine(fcst_st, datetime.datetime.min.time())
         self.df = df.rename(columns={col_ds: 'ds', col_y: 'y'})
@@ -35,6 +59,7 @@ class TimeSeriesForecasting:
 
     @staticmethod
     def filldaily(df, start, end, col_ds='ds', col_y='y'):
+        """Fill time series dataframe for all dates"""
         d = pd.DataFrame(pd.date_range(start=start, end=end), columns=[col_ds])
         df = pd.merge(d, df, on=col_ds, how='left')
         df = df.groupby([col_ds], as_index=False).agg({col_y: 'sum'})
@@ -43,6 +68,7 @@ class TimeSeriesForecasting:
 
     @staticmethod
     def daytomth(df, col_ds='ds', col_y='y'):
+        """Change time series dataframe from daily to monthly"""
         df[col_ds] = df[col_ds].apply(lambda x: x.replace(day=1))
         df = df.groupby([col_ds], as_index=False).agg({col_y: 'sum'})
         df = df[[col_ds, col_y]].sort_values(by=col_ds, ascending=True).reset_index(drop=True)
@@ -50,11 +76,13 @@ class TimeSeriesForecasting:
     
     @staticmethod
     def correctzero(df, col_ds='ds', col_y='y'):
+        """Edit dataframe <0 to 0"""
         df['y'] = df['y'].apply(lambda x: 0 if x<0 else x)
         return df
     
     @staticmethod
     def valtogr(df, mth_shift=12, col_ds='ds', col_y='y'):
+        """Transform nominal values to growth"""
         df = df.copy()
         df['ds_shift'] = df[col_ds].apply(lambda x: x + relativedelta(months=-mth_shift))
         df = pd.merge(df, df[[col_ds, col_y]].rename(columns={col_ds: 'ds_shift', col_y: 'y_shift'}), how='left', on='ds_shift')
@@ -62,6 +90,7 @@ class TimeSeriesForecasting:
     
     @staticmethod
     def grtoval(df, df_act, mth_shift=12, col_ds='ds', col_y='y', col_yact='y'):
+        """Transform nominal growth to values"""
         df = df.copy()
         df_act = df_act.copy()
         # map actual data
@@ -81,6 +110,7 @@ class TimeSeriesForecasting:
     
     # create monthly features
     def monthlyfeat(self, df, col, rnn_delay=3):
+        """Create monthly features"""
         df = df.copy()
         df_act = self.df_m.copy()
         df_append = df[(df['ds'] < df_act['ds'].min()) | (df['ds'] > df_act['ds'].max())]
@@ -126,6 +156,7 @@ class TimeSeriesForecasting:
     
     # create daily features
     def dailyfeat(self, df, col, decomp_period=None, decomp_method="additive"):
+        """Create daily features"""
         df = df.copy()
         df_act = self.df_d.copy()
         df_append = df[(df['ds'] < df_act['ds'].min()) | (df['ds'] > df_act['ds'].max())]
@@ -146,13 +177,50 @@ class TimeSeriesForecasting:
         df = df_act[(df_act['ds'] >= df['ds'].min()) & (df_act['ds'] <= df['ds'].max())]
         df = df.sort_values(by='ds', ascending=True).reset_index(drop=True)
         return df
-        
-    ### MODEL ###
-    # forecast from selected model
+
     def forecast(self, i, **kwargs):
+        """Forecast function
+        Parameters
+        ----------
+        i : {options}
+            specify model to run
+            options:
+                expo01 - Single Exponential Smoothing (Simple Smoothing)
+                expo02 - Double Exponential Smoothing (Holt’s Method)
+                expo03 - Triple Exponential Smoothing (Holt-Winters’ Method)
+                arima01 - ARIMA model with fixed parameter forecast nominal
+                arima02 - ARIMA model with fixed parameter forecast growth
+                arimax01 - ARIMA model with fixed parameter and external features forecast nominal
+                arimax02 - ARIMA model with fixed parameter and external features forecast nominal
+                autoarima01 - ARIMA model with optimal parameter forecast nominal
+                autoarima01 - ARIMA model with optimal parameter and external features forecast growth
+                autoarimax01 - ARIMA model with optimal parameter and external features forecast nominal
+                prophet01 - Prophet by Facebook forecast nominal
+                prophetd01 - Prophet by Facebook forecast daily
+                lineard01 - Linear Regression used latest trend to date forecast daily
+                lineard02 - Linear Regression used exact trend to date forecast daily
+                randomforest01 - Random Forest forecast nominal
+                randomforest02 - Random Forest forecast growth
+                randomforestx01 - Random Forest with external features forecast nominal
+                randomforestx01 - Random Forest with external features forecast growth
+                xgboost01 - XGBoost forecast nominal
+                xgboost02 - XGBoost forecast growth
+                xgboostx01 - XGBoost with external features forecast nominal
+                xgboostx01 - XGBoost with external features forecast growth    
+                lstm01 - Long Short-Term Memory forecast nominal
+                lstm02 - Long Short-Term Memory forecast growth
+                lstmr01 - Long Short-Term Memory with rolling forecast forecast nominal
+                lstmr02 - Long Short-Term Memory with rolling forecast forecast growth
+                lstmx01 - Long Short-Term Memory with external features forecast nominal
+                lstmx02 - Long Short-Term Memory with external features forecast growth                
+        Returns
+        -------
+        result : dataframe (ds, y)
+        """
         fn = getattr(TimeSeriesForecasting, i)
         return fn(self, **kwargs)
     
+    """ MODELS """
     # Exponential Smoothing model
     def expo(self, model):
         r = model.forecast(self.fcst_pr)
