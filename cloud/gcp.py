@@ -1,9 +1,7 @@
 import io
 
-import pandas as pd
 from google.cloud import storage
 from google.cloud import logging
-from google.oauth2 import service_account
 from google.cloud.logging.handlers import CloudLoggingHandler
 
 
@@ -55,32 +53,6 @@ def gcs_exists(gcspath, service_json=None):
     blob = storage.Blob(fullpath, bucket)
     return blob.exists()
 
-def gcl_logging(gclname, service_json=None):
-    if service_json is None:
-        client = logging.Client()
-    else:
-        client = logging.Client.from_service_account_json(service_json)
-    handler = CloudLoggingHandler(client, name=gclname)
-    return handler
-
-def gbq_upload(df, dest, service_json=None, action="replace"):
-    # action: fail/replace/append
-    dest = dest.split(".")
-    proj_id = dest[0]
-    tb = "{}.{}".format(dest[1], dest[2])
-    if service_json is None:
-        credentials = None
-    else:
-        credentials = service_account.Credentials.from_service_account_file(service_json)
-    pd.io.gbq.to_gbq(df, tb, project_id=proj_id, if_exists=action, credentials=credentials, progress_bar=False)
-
-def gbq_download(query, service_json=None):
-    if service_json is None:
-        client = bigquery.Client()
-    else:
-        client = bigquery.Client.from_service_account_json(service_json)
-    return client.query(query).to_dataframe()
-    
 def gcs_listfile(gcspath, subfolder=False, service_json=None):
     if service_json is None:
         client = storage.Client()
@@ -96,3 +68,11 @@ def gcs_listfile(gcspath, subfolder=False, service_json=None):
         blobs = client.list_blobs(bucket_name, prefix=prefix, delimiter="/")
         files = ["gs://" + "/".join([bucket_name, x.name]) for x in blobs if not x.name.endswith("/")]
     return files
+
+def gcl_logging(gclname, service_json=None):
+    if service_json is None:
+        client = logging.Client()
+    else:
+        client = logging.Client.from_service_account_json(service_json)
+    handler = CloudLoggingHandler(client, name=gclname)
+    return handler
