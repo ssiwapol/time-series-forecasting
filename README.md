@@ -1,6 +1,6 @@
 # TIME SERIES FORECASTING
 
-# Methods
+# Modules
 1. Model Validation (all models) - rolling forecast sales based on historical data (+ external features) for validating result
 2. Forecast Production (selected models) - forecast sales based on historical data (+ external features) and perform model selection based on historical forecast
 
