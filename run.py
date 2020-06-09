@@ -21,8 +21,7 @@ if __name__=="__main__":
     fp = FilePath(conf['PLATFORM'], cloud_auth=cloudauth_path)
 
     # load running config file
-    run_path = os.path.join(tmp_dir, args.runpath)
-    with fp.loadfile(run_path) as f:
+    with fp.loadfile(args.runpath) as f:
         r = yaml.load(f, Loader=yaml.Loader)
 
     # add prefix if run on local

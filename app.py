@@ -44,17 +44,18 @@ def runmodel():
     if auth == conf['APIKEY']:
         data = request.get_json()
         fp = FilePath(conf['PLATFORM'], cloud_auth=cloudauth_path)
+        run_conf = os.path.join(tmp_dir, data.get('path')) if conf['PLATFORM'] == "local" else data.get('path')
         # run
         try:
             # check run options
             if data.get('run') != "validate" and data.get('run') != "forecast":
                 return jsonify({"message": "ERROR: Run option is not available"}), 400
             # check path file
-            elif fp.fileexists(os.path.join(tmp_dir, data.get('path'))) is False:
+            elif fp.fileexists(run_conf) is False:
                 return jsonify({"message": "ERROR: Path file is not avaliable"}), 400
             # run in background
             else:
-                runsh = './run.sh {} {}'.format(data['run'], data["path"])
+                runsh = './run.sh {} {}'.format(data['run'], run_conf)
                 subprocess.call([runsh], shell=True)
                 return jsonify({"message": "Successful run in background"}), 200
         except Exception as e:
