@@ -26,6 +26,7 @@ def gcs_upload(file, gcspath, service_json=None, contenttype=None, public=False)
     bucket = client.get_bucket(gcspath.split("/")[2])
     fullpath = '/'.join(gcspath.split("/")[3:])
     blob = storage.Blob(fullpath, bucket)
+    blob.chunk_size = 5 * 1024 * 1024
     if contenttype is None:
         blob.upload_from_file(file)
     else:
