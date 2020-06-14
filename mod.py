@@ -69,6 +69,9 @@ class Validation:
         if self.ext is not None:
             ext = self.ext[['id', 'ds', 'y']].copy()
             ext_lag = self.ext_lag[self.ext_lag['y_id']==x].rename(columns={'ext_id': 'id'})[['id', 'lag']].copy()
+        else:
+            ext = None
+            ext_lag = None
         df_r = pd.DataFrame()
         for d in test_date:
             model = TimeSeriesForecasting(df=df, act_st=act_st, fcst_st=d, fcst_pr=fcst_pr, ext=ext, ext_lag=ext_lag)
@@ -213,6 +216,9 @@ class Forecasting:
         if self.ext is not None:
             ext = self.ext[['id', 'ds', 'y']].copy()
             ext_lag = self.ext_lag[self.ext_lag['y_id']==x].rename(columns={'ext_id': 'id'})[['id', 'lag']].copy()
+        else:
+            ext = None
+            ext_lag = None
         model = TimeSeriesForecasting(df=df, act_st=act_st, fcst_st=fcst_st, fcst_pr=fcst_pr, ext=ext, ext_lag=ext_lag)
         df_r = pd.DataFrame()
         for m in model_list:
