@@ -31,7 +31,7 @@ if __name__=="__main__":
 
     # run validate
     if args.run == "validate":
-        v = Validation(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], conf['CLOUD_AUTH'])
+        v = Validation(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], cloudauth_path)
         try:
             v.lg.logtxt("run detail: {}".format(r))
             v.loaddata(r['ACT_PATH'], r['EXT_PATH'], r['EXTLAG_PATH'])
@@ -46,7 +46,7 @@ if __name__=="__main__":
 
     # run forecast
     elif args.run == "forecast":
-        f = Forecasting(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], conf['CLOUD_AUTH'])
+        f = Forecasting(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], cloudauth_path)
         try:
             f.lg.logtxt("run detail: {}".format(r))
             f.loaddata(r['ACT_PATH'], r['FCST_PATH'], r['EXT_PATH'], r['EXTLAG_PATH'])
