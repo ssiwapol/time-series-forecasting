@@ -128,10 +128,10 @@ class TimeSeriesForecasting:
         df_act['lastgr_month'] = df_act['gr'].shift(1)
         df_act['lastgr_year'] = df_act['gr'].shift(12)
         # external feature
-        rnn_lag = self.ext.groupby(['id'], as_index=False).agg({"ds":"max"})
-        rnn_lag = rnn_lag.set_index('id')['ds'].to_dict()
-        rnn_lag = {k: max(relativedelta(self.fcst_st, v).months, rnn_delay) for k, v in rnn_lag.items()}
         if self.ext is not None and len(self.ext_lag) > 0:
+            rnn_lag = self.ext.groupby(['id'], as_index=False).agg({"ds":"max"})
+            rnn_lag = rnn_lag.set_index('id')['ds'].to_dict()
+            rnn_lag = {k: max(relativedelta(self.fcst_st, v).months, rnn_delay) for k, v in rnn_lag.items()}
             for i in self.ext_lag:
                 # external features with external lag
                 df_ex = self.ext[self.ext['id']==i].copy()
