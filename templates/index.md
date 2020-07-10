@@ -109,8 +109,6 @@ FCST_MODEL:
 TEST_TYPE: [TEST_TYPE(monthly/daily)]
 # number of months to test back
 TEST_BACK: [N]
-# starting period for each forecast (default 0/1)
-PERIOD_START: [N]
 # number of item to validate for each chunk
 CHUNKSIZE: [N]
 # number of running processors

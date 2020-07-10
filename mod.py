@@ -253,7 +253,7 @@ class Forecasting:
         df_rank['val'] = df_rank.apply(lambda x: True if x['model'] in x['val'] else False, axis=1)
         df_rank = df_rank[df_rank['val']==True].copy()
         # calculate error comparing with actual
-        act = df_act if test_type == 'daily' else TimeSeriesForecasting.daytomth(df_act)
+        act = df_act[['ds', 'y']] if test_type == 'daily' else TimeSeriesForecasting.daytomth(df_act)
         df_rank = pd.merge(df_rank, act, on=['ds'], how='left')
         df_rank = df_rank.rename(columns={'y': 'actual'})
         df_rank['error'] = df_rank.apply(lambda x: mape(x['actual'], x['forecast']), axis=1)
@@ -263,7 +263,7 @@ class Forecasting:
         df_rank['rank'] = df_rank.groupby('period')['error'].rank(method='first', ascending=True)
         return df_rank
         
-    def forecast(self, output_dir, act_st, fcst_st, fcst_model, test_type, test_bck, pr_st, chunk_sz, cpu):
+    def forecast(self, output_dir, act_st, fcst_st, fcst_model, test_type, test_bck, chunk_sz, cpu):
         """Forecast and write result by batch
         Parameters
         ----------
@@ -279,8 +279,6 @@ class Forecasting:
             type of testing back error by month or day
         test_bck : int
             number of months to test back
-        pr_st : int
-            starting period for each forecast (default 0/1)
         chunk_sz : int
             number of item to validate for each chunk
         cpu : int
@@ -308,6 +306,7 @@ class Forecasting:
         fcst_st = datetime.datetime.combine(fcst_st, datetime.datetime.min.time())
         test_st = fcst_st + relativedelta(months=-test_bck)
         fcst_pr = len(fcst_model.keys())
+        pr_st = min(fcst_model.keys())
         model_list = list(set(b for a in fcst_model.values() for b in a))
         self.lg.logtxt("total items: {} | chunk size: {} | total chunk: {}".format(len(items), chunk_sz, n_chunk))
         # forecast

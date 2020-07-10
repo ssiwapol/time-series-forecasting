@@ -52,7 +52,7 @@ if __name__=="__main__":
             f.loaddata(r['ACT_PATH'], r['FCST_PATH'], r['EXT_PATH'], r['EXTLAG_PATH'])
             f.forecast(
                 r['OUTPUT_DIR'], r['ACT_START'], r['FCST_START'], r['FCST_MODEL'], 
-                r['TEST_TYPE'], r['TEST_BACK'], r['PERIOD_START'], 
+                r['TEST_TYPE'], r['TEST_BACK'], 
                 r['CHUNKSIZE'], r['CPU']
                 )
         except Exception as e:
