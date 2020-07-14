@@ -16,6 +16,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM
 from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.backend import clear_session
 from statsmodels.tsa.seasonal import seasonal_decompose
 
 
@@ -793,6 +794,8 @@ class TimeSeriesForecasting:
             y_pred = list(y_pred[:, 0])
             r = pd.DataFrame(zip(self.dt_m, y_pred), columns =['ds', 'y'])
             r['y'] = self.grtoval(r, self.df_m) if gr else r['y']
+        del m
+        clear_session()
         return self.correctzero(r)
 
     # LSTM without external: forecast y
