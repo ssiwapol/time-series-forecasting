@@ -194,7 +194,7 @@ class Forecasting:
         col_id, col_ds, col_y, col_mth, col_model, col_fcst = 'id', 'ds', 'y', 'mth', 'model', 'forecast'
         dateparse = lambda x: datetime.datetime.strptime(x, '%Y-%m-%d').date()
         df_act = pd.read_csv(self.fp.loadfile(act_path), parse_dates=['ds'], date_parser=dateparse)
-        df_fcstlog = pd.read_csv(self.fp.loadfile(fcst_path), parse_dates=['ds'], date_parser=dateparse)
+        df_fcstlog = pd.read_csv(self.fp.loadfile(fcst_path), parse_dates=['ds', 'dsr'], date_parser=dateparse)
         self.df_act = df_act.rename(columns={col_id:'id', col_ds:'ds', col_y:'y'})
         self.df_fcstlog = df_fcstlog.rename(columns={col_id:'id', col_ds:'ds', col_mth:'mth', col_model:'model', col_fcst:'forecast'})
         # load external features
@@ -245,7 +245,7 @@ class Forecasting:
         df_act = self.df_act[self.df_act['id']==x].copy()
         df_fcstlog = self.df_fcstlog[self.df_fcstlog['id']==x].copy()
         df_act = df_act[(df_act['ds']>=act_st) & (df_act['ds']<fcst_st)].copy()
-        df_fcstlog = df_fcstlog[(df_fcstlog['ds']>=test_st) & (df_fcstlog['ds']<fcst_st)].copy()
+        df_fcstlog = df_fcstlog[(df_fcstlog['dsr']>=test_st) & (df_fcstlog['dsr']<fcst_st)].copy()
         df_rank = df_fcstlog.copy()
         # select only in config file
         df_rank['val'] = df_rank['period'].map(fcst_model)
