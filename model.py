@@ -87,7 +87,9 @@ class TimeSeriesForecasting:
         df = df.copy()
         df['ds_shift'] = df[col_ds].apply(lambda x: x + relativedelta(months=-mth_shift))
         df = pd.merge(df, df[[col_ds, col_y]].rename(columns={col_ds: 'ds_shift', col_y: 'y_shift'}), how='left', on='ds_shift')
-        return list((df[col_y] - df['y_shift']) / df['y_shift'])
+        df['gr'] = (df[col_y] - df['y_shift']) / df['y_shift']
+        df.loc[12:, 'gr'] = df.loc[12:, 'gr'].replace([np.inf, -np.inf, None], [1, -1, 1])
+        return list(df['gr'])
     
     @staticmethod
     def grtoval(df, df_act, mth_shift=12, col_ds='ds', col_y='y', col_yact='y'):
@@ -124,7 +126,7 @@ class TimeSeriesForecasting:
         df_act['last_month'] = df_act['y'].shift(1)
         df_act['last_year'] = df_act['y'].shift(12)
         df_act['last_momentum'] = (df_act['y'].shift(12) - df_act['y'].shift(13)) / df_act['y'].shift(13)
-        df_act['last_momentum'] = df_act['last_momentum'].replace([np.inf, -np.inf], [1, -1])
+        df_act.loc[12:, 'last_momentum'] = df_act.loc[12:, 'last_momentum'].replace([np.inf, -np.inf, None], [1, -1, 1])
         df_act['gr'] = self.valtogr(df_act, 12)
         df_act['lastgr_month'] = df_act['gr'].shift(1)
         df_act['lastgr_year'] = df_act['gr'].shift(12)
