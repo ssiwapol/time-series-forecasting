@@ -191,6 +191,15 @@ class TimeSeriesForecasting:
                 expo01 - Single Exponential Smoothing (Simple Smoothing)
                 expo02 - Double Exponential Smoothing (Holt’s Method)
                 expo03 - Triple Exponential Smoothing (Holt-Winters’ Method)
+                sma01 - Simple Moving Average (n=3)
+                sma02 - Simple Moving Average (n=6)
+                sma03 - Simple Moving Average (n=12)
+                wma01 - Weighted Moving Average (n=3)
+                wma02 - Weighted Moving Average (n=6)
+                wma03 - Weighted Moving Average (n=12)
+                ema01 - Exponential Moving Average (n=3)
+                ema02 - Exponential Moving Average (n=6)
+                ema03 - Exponential Moving Average (n=12)
                 arima01 - ARIMA model with fixed parameter forecast nominal
                 arima02 - ARIMA model with fixed parameter forecast growth
                 arimax01 - ARIMA model with fixed parameter and external features forecast nominal
@@ -251,6 +260,66 @@ class TimeSeriesForecasting:
         x = list(self.df_m['y'])
         m = ExponentialSmoothing(x, trend=param['trend'], seasonal=param['seasonal'], seasonal_periods=12).fit(optimized=True)
         r = self.expo(m)
+        return r
+
+    # Moving Average model
+    def ma(self, param):
+        r = self.df_m.copy()
+        r = r.sort_values(by='ds', ascending=True).reset_index(drop=True)
+        w = np.arange(1, param['n']+1)
+        r['sma'] = r['y'].rolling(window=param['n']).mean()
+        r['wma'] = r['y'].rolling(window=param['n']).apply(lambda x: np.dot(x, w)/w.sum(), raw=True)
+        r['ema'] = r['y'].ewm(span=param['n']).mean()
+        r = [r[param['method']].iloc[-1]] * self.fcst_pr
+        r = pd.DataFrame(zip(self.dt_m, r), columns =['ds', 'y'])
+        return self.correctzero(r)
+
+    # Simple Moving Average
+    def sma01(self):
+        param = {'method': 'sma', 'n': 3}
+        r = self.ma(param)
+        return r
+
+    def sma02(self):
+        param = {'method': 'sma', 'n': 6}
+        r = self.ma(param)
+        return r
+
+    def sma03(self):
+        param = {'method': 'sma', 'n': 12}
+        r = self.ma(param)
+        return r
+
+    # Weighted Moving Average
+    def wma01(self):
+        param = {'method': 'wma', 'n': 3}
+        r = self.ma(param)
+        return r
+
+    def wma02(self):
+        param = {'method': 'wma', 'n': 6}
+        r = self.ma(param)
+        return r
+
+    def wma03(self):
+        param = {'method': 'wma', 'n': 12}
+        r = self.ma(param)
+        return r
+
+    # Exponential Moving Average
+    def ema01(self):
+        param = {'method': 'ema', 'n': 3}
+        r = self.ma(param)
+        return r
+
+    def ema02(self):
+        param = {'method': 'ema', 'n': 6}
+        r = self.ma(param)
+        return r
+
+    def ema03(self):
+        param = {'method': 'ema', 'n': 12}
+        r = self.ma(param)
         return r
     
     def arima(self, gr, param):
