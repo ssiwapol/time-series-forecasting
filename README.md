@@ -8,6 +8,9 @@
 - Single Exponential Smoothing (Simple Smoothing)
 - Double Exponential Smoothing (Holt’s Method)
 - Triple Exponential Smoothing (Holt-Winters’ Method)
+- Simple Moving Average
+- Weighted Moving Average
+- Exponential Moving Average
 - ARIMA (Autoregressive Integrated Moving Average)
 - ARIMAX (Autoregressive Integrated Moving Average with Explanatory Variable)
 - [Prophet by Facebook](https://facebook.github.io/prophet/)

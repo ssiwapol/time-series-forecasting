@@ -25,6 +25,15 @@ MODEL | DESCRIPTION | INPUT | OUTPUT | YTYPE
 expo01 | Single Exponential Smoothing (Simple Smoothing) | Daily / Monthly | Monthly | Nominal
 expo02 | Double Exponential Smoothing (Holt’s Method) | Daily / Monthly | Monthly | Nominal
 expo03 | Triple Exponential Smoothing (Holt-Winters’ Method) | Daily / Monthly | Monthly | Nominal
+sma01 | Simple Moving Average (n=3) | Daily / Monthly | Monthly | Nominal
+sma02 | Simple Moving Average (n=6) | Daily / Monthly | Monthly | Nominal
+sma03 | Simple Moving Average (n=12) | Daily / Monthly | Monthly | Nominal
+wma01 | Weighted Moving Average (n=3) | Daily / Monthly | Monthly | Nominal
+wma02 | Weighted Moving Average (n=6) | Daily / Monthly | Monthly | Nominal
+wma03 | Weighted Moving Average (n=12) | Daily / Monthly | Monthly | Nominal
+ema01 | Exponential Moving Average (n=3) | Daily / Monthly | Monthly | Nominal
+ema02 | Exponential Moving Average (n=6) | Daily / Monthly | Monthly | Nominal
+ema03 | Exponential Moving Average (n=12) | Daily / Monthly | Monthly | Nominal
 arima01 | ARIMA model with fixed parameter | Daily / Monthly | Monthly | Nominal
 arima02 | ARIMA model with fixed parameter | Daily / Monthly | Monthly | Growth
 arimax01 | ARIMAX model with fixed parameter and external features | Daily / Monthly | Monthly | Nominal
