@@ -49,10 +49,11 @@ if __name__=="__main__":
         f = Forecasting(conf['PLATFORM'], conf['LOG_TAG'], conf['TIMEZONE'], cloudauth_path)
         try:
             f.lg.logtxt("run detail: {}".format(r))
-            f.loaddata(r['ACT_PATH'], r['FCST_PATH'], r['EXT_PATH'], r['EXTLAG_PATH'])
+            f.loaddata(r['ACT_PATH'], r['FCSTLOG_PATH'], r['EXT_PATH'], r['EXTLAG_PATH'])
             f.forecast(
                 r['OUTPUT_DIR'], r['ACT_START'], r['FCST_START'], r['FCST_MODEL'], 
                 r['TEST_TYPE'], r['TEST_BACK'], 
+                r['TOP_MODEL'], r['ENSEMBLE_METHOD'], 
                 r['CHUNKSIZE'], r['CPU']
                 )
         except Exception as e:

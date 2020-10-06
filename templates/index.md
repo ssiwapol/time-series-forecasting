@@ -96,7 +96,7 @@ CPU: [N]
 # actual sales data (daily/monthly)
 ACT_PATH: [PATH_TO_FILE].csv
 # forecasting log for walk-forward validation
-FCST_PATH: [PATH_TO_FILE].csv
+FCSTLOG_PATH: [PATH_TO_FILE].csv
 # external data (monthly)
 EXT_PATH: [PATH_TO_FILE].csv
 # external lagging of each item
@@ -118,6 +118,10 @@ FCST_MODEL:
 TEST_TYPE: [TEST_TYPE(monthly/daily)]
 # number of months to test back
 TEST_BACK: [N]
+# top N best models to use
+TOP_MODEL: [N]
+# ensemble method to combine the models
+ENSEMBLE_METHOD: [mean/median]
 # number of item to validate for each chunk
 CHUNKSIZE: [N]
 # number of running processors
@@ -204,6 +208,16 @@ b,2019-03-01,2019-01-01,2,MODEL2,800,0.01
 ```
 - output: output_forecast_0001-0100.csv
 ```
+id,ds,dsr,period,forecast,error
+a,2020-01-01,2020-01-01,0,500,0
+a,2020-02-01,2020-01-01,1,600,0
+a,2020-03-01,2020-01-01,2,700,0
+b,2020-01-01,2020-01-01,0,500,0
+b,2020-02-01,2020-01-01,1,600,0
+b,2020-03-01,2020-01-01,2,700,0
+```
+- output: output_forecastlog_0001-0100.csv
+```
 id,ds,dsr,period,model,forecast,time
 a,2020-01-01,2020-01-01,0,MODEL1,500,0.01
 a,2020-02-01,2020-01-01,1,MODEL1,600,0.01
@@ -217,14 +231,4 @@ b,2020-03-01,2020-01-01,2,MODEL1,700,0.01
 b,2020-01-01,2020-01-01,0,MODEL2,800,0.01
 b,2020-02-01,2020-01-01,1,MODEL2,900,0.01
 b,2020-03-01,2020-01-01,2,MODEL2,800,0.01
-```
-- output: output_selection_0001-0100.csv
-```
-id,ds,dsr,period,model,forecast,error,time
-a,2020-01-01,2020-01-01,0,MODEL1,500,0,0.01
-a,2020-02-01,2020-01-01,1,MODEL1,600,0,0.01
-a,2020-03-01,2020-01-01,2,MODEL1,700,0,0.01
-b,2020-01-01,2020-01-01,0,MODEL1,500,0,0.01
-b,2020-02-01,2020-01-01,1,MODEL1,600,0,0.01
-b,2020-03-01,2020-01-01,2,MODEL1,700,0,0.01
 ```

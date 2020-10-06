@@ -177,13 +177,13 @@ class Forecasting:
         self.lg.logtxt("[START FORECASTING]")
         self.tz = tz
     
-    def loaddata(self, act_path, fcst_path, ext_path=None, extlag_path=None):
+    def loaddata(self, act_path, fcstlog_path, ext_path=None, extlag_path=None):
         """Load data for validation process
         Parameters
         ----------
         act_path : str
             historical data path
-        fcst_path : str
+        fcstlog_path : str
             forecast log path
         ext_path : str
             external features path
@@ -194,7 +194,7 @@ class Forecasting:
         col_id, col_ds, col_y, col_mth, col_model, col_fcst = 'id', 'ds', 'y', 'mth', 'model', 'forecast'
         dateparse = lambda x: datetime.datetime.strptime(x, '%Y-%m-%d').date()
         df_act = pd.read_csv(self.fp.loadfile(act_path), parse_dates=['ds'], date_parser=dateparse)
-        df_fcstlog = pd.read_csv(self.fp.loadfile(fcst_path), parse_dates=['ds', 'dsr'], date_parser=dateparse)
+        df_fcstlog = pd.read_csv(self.fp.loadfile(fcstlog_path), parse_dates=['ds', 'dsr'], date_parser=dateparse)
         self.df_act = df_act.rename(columns={col_id:'id', col_ds:'ds', col_y:'y'})
         self.df_fcstlog = df_fcstlog.rename(columns={col_id:'id', col_ds:'ds', col_mth:'mth', col_model:'model', col_fcst:'forecast'})
         # load external features
@@ -204,11 +204,11 @@ class Forecasting:
             ext_lag = pd.read_csv(self.fp.loadfile(extlag_path), date_parser=dateparse)
             self.ext = ext.rename(columns={col_id: 'id', col_ds: 'ds', col_y: 'y'})[['id', 'ds', 'y']]
             self.ext_lag = ext_lag.rename(columns={col_yid: 'y_id', col_extid: 'ext_id', col_lag: 'lag'})[['y_id', 'ext_id', 'lag']]
-            self.lg.logtxt("load data: {} | {} | {} | {}".format(act_path, fcst_path, ext_path, extlag_path))
+            self.lg.logtxt("load data: {} | {} | {} | {}".format(act_path, fcstlog_path, ext_path, extlag_path))
         else:
             self.ext = None
             self.ext_lag = None
-            self.lg.logtxt("load data: {} | {}".format(act_path, fcst_path))
+            self.lg.logtxt("load data: {} | {}".format(act_path, fcstlog_path))
 
     def forecast_byitem(self, x, act_st, fcst_st, fcst_pr, model_list, pr_st, batch_no):
         """Forecast data by item for parallel computing"""
@@ -240,30 +240,44 @@ class Forecasting:
                 self.lg.logtxt(error_txt, error=True)
         return df_r
 
-    def rankmodel_byitem(self, x, fcst_model, act_st, fcst_st, test_type, test_st):
+    def rank_model(self, fcst_model, act_st, fcst_st, test_type, test_st, rank_by='mae', error_by='mape'):
         """Rank model based on historical forecast"""
-        df_act = self.df_act[self.df_act['id']==x].copy()
-        df_fcstlog = self.df_fcstlog[self.df_fcstlog['id']==x].copy()
-        df_act = df_act[(df_act['ds']>=act_st) & (df_act['ds']<fcst_st)].copy()
-        df_fcstlog = df_fcstlog[(df_fcstlog['dsr']>=test_st) & (df_fcstlog['dsr']<fcst_st)].copy()
-        df_rank = df_fcstlog.copy()
+        df_act = pd.DataFrame()
+        for i in self.df_act['id'].unique():
+            df_i = self.df_act[self.df_act['id']==i].copy()
+            df_i = TimeSeriesForecasting.filldaily(df_i, act_st, fcst_st + datetime.timedelta(days=-1))
+            df_i = df_i if test_type == 'daily' else TimeSeriesForecasting.daytomth(df_i)
+            df_i['id'] = i
+            df_act = df_act.append(df_i[['id', 'ds', 'y']], ignore_index=True)
+        df_rank = self.df_fcstlog[(self.df_fcstlog['dsr']>=test_st) & (self.df_fcstlog['dsr']<fcst_st)].copy()
         # select only in config file
         df_rank['val'] = df_rank['period'].map(fcst_model)
         df_rank = df_rank[df_rank['val'].notnull()].copy()
         df_rank['val'] = df_rank.apply(lambda x: True if x['model'] in x['val'] else False, axis=1)
         df_rank = df_rank[df_rank['val']==True].copy()
-        # calculate error comparing with actual
-        act = df_act[['ds', 'y']] if test_type == 'daily' else TimeSeriesForecasting.daytomth(df_act)
-        df_rank = pd.merge(df_rank, act, on=['ds'], how='left')
-        df_rank = df_rank.rename(columns={'y': 'actual'})
-        df_rank['error'] = df_rank.apply(lambda x: mape(x['actual'], x['forecast']), axis=1)
-        df_rank = df_rank[df_rank['error'].notnull()]
-        df_rank = df_rank.groupby(['id', 'period', 'model'], as_index=False).agg({'error':'mean'})
+        # # calculate error comparing with actual
+        df_rank = pd.merge(df_rank, df_act.rename(columns={'y': 'actual'}), on=['id', 'ds'], how='left')
+        df_rank['mae'] = df_rank.apply(lambda x: abs(x['actual'] - x['forecast']), axis=1)
+        df_rank['mape'] = df_rank.apply(lambda x: mape(x['actual'], x['forecast']), axis=1)
+        df_rank[['mae', 'mape']] = df_rank[['mae', 'mape']].fillna(0)
         # ranking error
-        df_rank['rank'] = df_rank.groupby('period')['error'].rank(method='first', ascending=True)
+        df_rank = df_rank.groupby(['id', 'period', 'model'], as_index=False).agg({'mae':'mean', 'mape':'mean'})
+        df_rank['rank'] = df_rank.groupby(['id', 'period'])[rank_by].rank(method='dense', ascending=True)
+        df_rank['error'] = df_rank[error_by]
         return df_rank
-        
-    def forecast(self, output_dir, act_st, fcst_st, fcst_model, test_type, test_bck, chunk_sz, cpu):
+
+    def ensemble_model(self, df_fcst, df_rank, top_model, method):
+        # combine forecast
+        df_ens = pd.merge(df_fcst, df_rank, on=['id', 'period', 'model'], how='left')
+        df_ens = df_ens[df_ens['rank'] <= top_model].copy()
+        if method=='mean':
+            df_ens = df_ens.groupby(['id', 'ds', 'dsr', 'period'], as_index=False).agg({'forecast': 'mean', 'error': 'mean'})
+        elif method=='median':
+            df_ens = df_ens.groupby(['id', 'ds', 'dsr', 'period'], as_index=False).agg({'forecast': 'median', 'error': 'median'})
+        df_ens = df_ens.sort_values(by=['id', 'dsr', 'ds'], ascending=True).reset_index(drop=True)
+        return df_ens
+
+    def forecast(self, output_dir, act_st, fcst_st, fcst_model, test_type, test_bck, top_model=3, ens_method='mean', chunk_sz=1, cpu=1):
         """Forecast and write result by batch
         Parameters
         ----------
@@ -309,37 +323,30 @@ class Forecasting:
         pr_st = min(fcst_model.keys())
         model_list = list(set(b for a in fcst_model.values() for b in a))
         self.lg.logtxt("total items: {} | chunk size: {} | total chunk: {}".format(len(items), chunk_sz, n_chunk))
+        # rank the models
+        df_rank = self.rank_model(fcst_model, act_st, fcst_st, test_type, test_st)
         # forecast
         cpu_count = 1 if cpu<=1 else multiprocessing.cpu_count() if cpu>=multiprocessing.cpu_count() else cpu
         self.lg.logtxt("run at {} processor(s)".format(cpu_count))
         for i, c in enumerate(chunker(items, chunk_sz), 1):
             df_fcst = pd.DataFrame()
-            df_rank = pd.DataFrame()
             if cpu_count==1:
                 for r in [self.forecast_byitem(x, act_st, fcst_st, fcst_pr, model_list, pr_st, i) for x in c]:
                     df_fcst = df_fcst.append(r, ignore_index = True)
-                for r in [self.rankmodel_byitem(x, fcst_model, act_st, fcst_st, test_type, test_st) for x in c]:
-                    df_rank = df_rank.append(r, ignore_index = True)
             else:
                 pool = multiprocessing.Pool(processes=cpu_count)
                 for r in pool.starmap(self.forecast_byitem, [[x, act_st, fcst_st, fcst_pr, model_list, pr_st, i] for x in c]):
                     df_fcst = df_fcst.append(r, ignore_index = True)
                 pool.close()
                 pool.join()
-                pool = multiprocessing.Pool(processes=cpu_count)
-                for r in pool.starmap(self.rankmodel_byitem, [[x, fcst_model, act_st, fcst_st, test_type, test_st] for x in c]):
-                    df_rank = df_rank.append(r, ignore_index = True)
-            # find best model
-            df_sl = pd.merge(df_fcst, df_rank, on=['id', 'period', 'model'], how='left')
-            df_sl = df_sl[df_sl['rank']==1].copy()
-            df_sl = df_sl[['id', 'ds', 'dsr', 'period', 'model', 'forecast', 'error', 'time']]
-            df_sl = df_sl.sort_values(by=['id', 'ds'], ascending=True).reset_index(drop=True)
+            # ensemble forecast results
+            df_ens = self.ensemble_model(df_fcst, df_rank, top_model, method=ens_method)
             # write forecast result
             fcst_path = "{}output_forecast_{:04d}-{:04d}.csv".format(output_dir, i, n_chunk)
-            self.fp.writecsv(df_fcst, fcst_path)
-            # write selection result
-            selection_path = "{}output_selection_{:04d}-{:04d}.csv".format(output_dir, i, n_chunk)
-            self.fp.writecsv(df_sl, selection_path)
-            self.lg.logtxt("write output file ({}/{}): {} | {}".format(i, n_chunk, fcst_path, selection_path))
+            self.fp.writecsv(df_ens, fcst_path)
+            # write forecast log result
+            fcstlog_path = "{}output_forecastlog_{:04d}-{:04d}.csv".format(output_dir, i, n_chunk)
+            self.fp.writecsv(df_fcst, fcstlog_path)
+            self.lg.logtxt("write output file ({}/{}): {} | {}".format(i, n_chunk, fcst_path, fcstlog_path))
         self.lg.logtxt("[END FORECAST]")
         self.lg.writelog("{}logfile.log".format(output_dir))
